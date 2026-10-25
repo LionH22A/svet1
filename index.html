@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#e4e7ea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#17191d" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Подсветка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #e4e7ea;          /* бетонная стена */
+    --plate: #f6f7f8;       /* рамка выключателя */
+    --plate-edge: #cfd4d9;
+    --text: #1d232a;
+    --muted: #69737e;
+    --steel: #2d6aa8;       /* кнопка подключения */
+    --led: #ffcf73;         /* лента 3000K */
+    --led-glow: rgba(255, 190, 80, .55);
+    --led-off: #c5cbd1;
+    --ok: #2f9e5b;
+    --warn: #d18a1c;
+    --err: #c2412d;
+    --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17191d;
+      --plate: #23272d;
+      --plate-edge: #343a42;
+      --text: #e7eaed;
+      --muted: #8f99a4;
+      --steel: #4a8ad0;
+      --led-off: #3a4048;
+      --led-glow: rgba(255, 190, 80, .4);
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 400 16px/1.45 var(--font);
+    padding: env(safe-area-inset-top, 0px) 16px env(safe-area-inset-bottom, 0px);
+    -webkit-tap-highlight-color: transparent;
+  }
+  main {
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 28px 0 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  header { margin-bottom: 6px; }
+  h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; }
+  .status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 15px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--led-off); flex: none; }
+  .dot.ok { background: var(--ok); }
+  .dot.busy { background: var(--warn); }
+  .dot.err { background: var(--err); }
+
+  button {
+    font: inherit;
+    color: inherit;
+    width: 100%;
+    cursor: pointer;
+    border: 1px solid var(--plate-edge);
+    background: var(--plate);
+    border-radius: 18px;
+    transition: transform .06s ease, background-color .2s ease, opacity .2s ease;
+  }
+  button:active:not(:disabled) { transform: scale(.985); }
+  button:disabled { opacity: .45; cursor: default; }
+  button:focus-visible { outline: 3px solid var(--steel); outline-offset: 2px; }
+
+  .connect {
+    min-height: 56px;
+    font-weight: 600;
+    font-size: 17px;
+    background: var(--steel);
+    border-color: transparent;
+    color: #fff;
+  }
+  .connect.disconnect { background: transparent; color: var(--steel); border-color: var(--steel); }
+
+  /* Зоны: рамка выключателя с полоской ленты сверху */
+  .zone {
+    position: relative;
+    min-height: 116px;
+    padding: 30px 22px 20px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    text-align: left;
+    overflow: hidden;
+  }
+  .zone::before {
+    content: "";
+    position: absolute;
+    left: 22px; right: 22px; top: 14px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--led-off);
+    transition: background-color .25s ease, box-shadow .25s ease;
+  }
+  .zone.on::before {
+    background: var(--led);
+    box-shadow: 0 0 14px 3px var(--led-glow), 0 0 40px 8px var(--led-glow);
+  }
+  .zone .name { font-size: 22px; font-weight: 600; }
+  .zone .meta { font-size: 15px; color: var(--muted); }
+  .zone.on .meta { color: var(--text); }
+
+  .all {
+    min-height: 60px;
+    font-size: 17px;
+    font-weight: 500;
+  }
+
+  .hint { color: var(--muted); font-size: 14px; margin: 2px 0 0; }
+  .link {
+    background: none; border: none; padding: 6px 0; width: auto;
+    color: var(--steel); font-size: 14px; text-decoration: underline; text-underline-offset: 3px;
+    align-self: flex-start;
+  }
+  .notice {
+    border: 1px solid var(--err);
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+  .notice[hidden] { display: none; }
+
+  details { margin-top: 10px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 14px; padding: 6px 0; }
+  pre {
+    margin: 6px 0 0;
+    max-height: 220px;
+    overflow: auto;
+    background: var(--plate);
+    border: 1px solid var(--plate-edge);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font: 12.5px/1.5 var(--mono);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Подсветка</h1>
+    <div class="status" role="status" aria-live="polite">
+      <span class="dot" id="dot"></span><span id="statusText">Не подключено</span>
+    </div>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <button class="connect" id="btnConnect">Подключить</button>
+  <button class="link" id="btnAll" type="button">Модуль не в списке? Показать все устройства</button>
+
+  <button class="zone" id="z1" data-cmd="1" disabled>
+    <span class="name">Зона 1</span><span class="meta" id="z1s">нет данных</span>
+  </button>
+  <button class="zone" id="z2" data-cmd="2" disabled>
+    <span class="name">Зона 2</span><span class="meta" id="z2s">нет данных</span>
+  </button>
+
+  <button class="all" id="allOn" data-cmd="A" disabled>Включить всё</button>
+  <button class="all" id="allOff" data-cmd="X" disabled>Выключить всё</button>
+
+  <details>
+    <summary>Журнал обмена</summary>
+    <pre id="log"></pre>
+  </details>
+</main>
+
+<script>
+  // HM-10 / AT-09 / CC41 / MLT-BT05: прозрачный UART через сервис FFE0, характеристика FFE1
+  const SVC = 0xFFE0;
+  const CHR = 0xFFE1;
+
+  const $ = (id) => document.getElementById(id);
+  const ctrlButtons = ["z1", "z2", "allOn", "allOff"].map($);
+
+  let device = null;
+  let chr = null;
+  let rxBuf = "";
+  let writeQueue = Promise.resolve();
+  let userDisconnect = false;
+
+  // ---------- журнал ----------
+  const logLines = [];
+  function log(dir, text) {
+    const t = new Date();
+    const ts = t.toTimeString().slice(0, 8) + "." + String(t.getMilliseconds()).padStart(3, "0");
+    logLines.push(`${ts}  ${dir}  ${text}`);
+    if (logLines.length > 200) logLines.shift();
+    const pre = $("log");
+    pre.textContent = logLines.join("\n");
+    pre.scrollTop = pre.scrollHeight;
+  }
+
+  // ---------- интерфейс ----------
+  function setStatus(kind, text) {
+    $("dot").className = "dot" + (kind ? " " + kind : "");
+    $("statusText").textContent = text;
+  }
+  function setConnectedUI(connected) {
+    ctrlButtons.forEach((b) => (b.disabled = !connected));
+    const c = $("btnConnect");
+    c.textContent = connected ? "Отключить" : (device ? "Подключить снова" : "Подключить");
+    c.classList.toggle("disconnect", connected);
+    $("btnAll").hidden = connected;
+    if (!connected) setZones(null, null);
+  }
+  function setZones(z1, z2) {
+    [[z1, "z1"], [z2, "z2"]].forEach(([on, id]) => {
+      $(id).classList.toggle("on", on === true);
+      $(id).setAttribute("aria-pressed", on === true ? "true" : "false");
+      $(id + "s").textContent = on === null ? "нет данных" : on ? "включена" : "выключена";
+    });
+  }
+  function showNotice(text) {
+    const n = $("notice");
+    n.textContent = text;
+    n.hidden = !text;
+  }
+
+  // ---------- проверка браузера ----------
+  function checkSupport() {
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    if (!window.isSecureContext) {
+      showNotice("Bluetooth работает только на странице, открытой по https://");
+      return false;
+    }
+    if (!navigator.bluetooth) {
+      showNotice(ios
+        ? "Safari не поддерживает Bluetooth для сайтов. Открой эту страницу в браузере Bluefy (бесплатный, App Store)."
+        : "Этот браузер не поддерживает Web Bluetooth. Открой страницу в Chrome.");
+      return false;
+    }
+    return true;
+  }
+
+  // ---------- Bluetooth ----------
+  async function pickDevice(showAll) {
+    const opts = showAll
+      ? { acceptAllDevices: true, optionalServices: [SVC] }
+      : {
+          filters: [
+            { services: [SVC] },
+            { namePrefix: "HM" }, { namePrefix: "BT05" }, { namePrefix: "MLT" },
+            { namePrefix: "CC41" }, { namePrefix: "JDY" }, { namePrefix: "AT-09" },
+          ],
+          optionalServices: [SVC],
+        };
+    return navigator.bluetooth.requestDevice(opts);
+  }
+
+  async function connect(showAll = false) {
+    if (!checkSupport()) return;
+    try {
+      if (!device || showAll) {
+        setStatus("busy", "Ищу модуль…");
+        device = await pickDevice(showAll);
+        device.addEventListener("gattserverdisconnected", onDisconnected);
+      }
+      const name = device.name || "модулю";
+      setStatus("busy", `Подключаюсь к ${name}…`);
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(SVC);
+      chr = await service.getCharacteristic(CHR);
+      await chr.startNotifications();
+      chr.addEventListener("characteristicvaluechanged", onData);
+      userDisconnect = false;
+      rxBuf = "";
+      setStatus("ok", `Подключено: ${device.name || "модуль"}`);
+      setConnectedUI(true);
+      log("··", `connected ${device.name || ""}`);
+      send("?");
+    } catch (e) {
+      if (e.name === "NotFoundError") {        // пользователь закрыл окно выбора
+        setStatus(device ? "err" : "", device ? "Не подключено" : "Не подключено");
+        return;
+      }
+      chr = null;
+      setStatus("err", "Не удалось подключиться: " + e.message);
+      setConnectedUI(false);
+      log("!!", e.message);
+    }
+  }
+
+  function disconnect() {
+    userDisconnect = true;
+    if (device && device.gatt.connected) device.gatt.disconnect();
+  }
+
+  function onDisconnected() {
+    chr = null;
+    setConnectedUI(false);
+    log("··", "disconnected");
+    if (userDisconnect) setStatus("", "Отключено");
+    else setStatus("err", "Связь потеряна. Нажми «Подключить снова»");
+  }
+
+  function send(cmd) {
+    if (!chr) return;
+    const data = new TextEncoder().encode(cmd);
+    writeQueue = writeQueue
+      .then(() => (chr.properties.writeWithoutResponse && chr.writeValueWithoutResponse
+        ? chr.writeValueWithoutResponse(data)
+        : chr.writeValue(data)))
+      .then(() => log("→ ", cmd))
+      .catch((e) => log("!!", "write: " + e.message));
+  }
+
+  function onData(ev) {
+    rxBuf += new TextDecoder().decode(ev.target.value);
+    let i;
+    while ((i = rxBuf.indexOf("\n")) >= 0) {
+      const line = rxBuf.slice(0, i).replace(/\r/g, "").trim();
+      rxBuf = rxBuf.slice(i + 1);
+      if (!line) continue;
+      log("← ", line);
+      const m = line.match(/Z1=(\d)\s+Z2=(\d)/);
+      if (m) setZones(m[1] === "1", m[2] === "1");
+    }
+    if (rxBuf.length > 256) rxBuf = "";        // защита от мусора без перевода строки
+  }
+
+  // ---------- события ----------
+  $("btnConnect").addEventListener("click", () => {
+    if (device && device.gatt.connected) disconnect();
+    else connect(false);
+  });
+  $("btnAll").addEventListener("click", () => connect(true));
+  ctrlButtons.forEach((b) => b.addEventListener("click", () => send(b.dataset.cmd)));
+
+  setConnectedUI(false);
+  checkSupport();
+</script>
+</body>
+</html>
